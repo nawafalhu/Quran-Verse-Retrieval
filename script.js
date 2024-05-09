@@ -1,44 +1,49 @@
 document.getElementById('verseForm').addEventListener('submit', function(event) {
     event.preventDefault();
 
-    const pageInput = document.getElementById('pageNumber').value; 
+    const surahSelect = document.getElementById('surahSelect');
+    const surahNumber = surahSelect.value;
+    const ayahNumber = document.getElementById('ayahNumber').value;
     const messageElement = document.getElementById('message');
     const versesContainer = document.getElementById('versesContainer');
 
     messageElement.textContent = '';
     versesContainer.innerHTML = '';
 
-    
-    if (!pageInput || isNaN(pageInput) || parseInt(pageInput) < 1 || parseInt(pageInput) > 604) {
-        messageElement.textContent = 'Please enter a valid page number between 1 and 604.';
-        return;
+    let apiUrl = `https://api.alquran.cloud/v1/surah/${surahNumber}`;
+
+    // Explicitly check if Ayah number is provided and valid
+    if (ayahNumber.trim() !== "" && !isNaN(ayahNumber) && parseInt(ayahNumber) > 0) {
+        // If Ayah number is valid, modify the URL to fetch only that specific Ayah
+        apiUrl = `https://api.alquran.cloud/v1/ayah/${surahNumber}:${ayahNumber}`;
     }
 
-    
-    const url = `https://api.quran.com/api/v4/quran/verses/uthmani?page_number=${pageInput}`;
-
-    
-    fetch(url)
+    fetch(apiUrl)
         .then(response => {
-            if (!response.ok) { 
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`Network error! Status: ${response.status}`);
             }
-            return response.json(); 
+            return response.json();
         })
         .then(data => {
-            
-            if (data && data.verses && data.verses.length > 0) {
-                data.verses.forEach(verse => {
+            // Determine what type of data is expected based on the API request
+            if (ayahNumber.trim() !== "" && data.data && !data.data.ayahs) {
+                // Handling single Ayah
+                const p = document.createElement('p');
+                p.textContent = `${data.data.numberInSurah}: ${data.data.text}`;
+                versesContainer.appendChild(p);
+            } else if (data.data && data.data.ayahs) {
+                // Handling all Ayahs in the Surah
+                data.data.ayahs.forEach(ayah => {
                     const p = document.createElement('p');
-                    p.textContent = `${verse.text_uthmani}`;
+                    p.textContent = `${ayah.numberInSurah}: ${ayah.text}`;
                     versesContainer.appendChild(p);
                 });
             } else {
-                messageElement.textContent = 'No verses found for this page.';
+                messageElement.textContent = 'No verses found for this Surah or Ayah.';
             }
         })
         .catch(error => {
-            
-            messageElement.textContent = 'Error fetching data: ' + error.message;
+            messageElement.textContent = 'Error retrieving data: ' + error.message;
         });
 });
